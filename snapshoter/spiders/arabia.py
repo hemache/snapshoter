@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-import scrapy
 import string
+from scrapy.http import Request
+from scrapy.selector import Selector
 from scrapy.contrib.linkextractors import LinkExtractor
 from scrapy.contrib.spiders import CrawlSpider, Rule
 from scrapy.contrib.loader import ItemLoader
@@ -13,13 +14,22 @@ from snapshoter.items import ArabiaPostItem, ArabiaCommentItem, ArabiaCommunityI
 class ArabiaSpider(CrawlSpider):
     name = 'arabia'
     allowed_domains = ['arabia.io']
-    start_urls = ['https://arabia.io/communities']
 
     rules = (
         Rule(LinkExtractor(allow=r'/[a-zA-Z0-9_-]+$', deny=r'/u/.+?$'), callback='parse_community', follow=True),
-        Rule(LinkExtractor(allow=r'/[a-zA-Z0-9_-]+/\d+-.*?'), callback='parse_post', follow=True)
+        #Rule(LinkExtractor(allow=r'/[a-zA-Z0-9_-]+/\d+-.*?'), callback='parse_post', follow=True)
     )
-
+    
+    def start_requests(self):
+        yield Request('https://arabia.io/communities')
+        yield Request('https://arabia.io/sitemap-1.xml', callback=self.parse_sitemap)
+    
+    def parse_sitemap(self, response):
+        selector = Selector(text=response.body)
+        for url in selector.xpath('//loc/text()').extract():
+            # adding meta date will result memory leak, avoid it !
+            yield Request(url, callback=self.parse_post)
+        
     def parse_post(self, response):
         post = ItemLoader(item=ArabiaPostItem(), response=response)
         post.default_output_processor = TakeFirst()
