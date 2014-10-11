@@ -6,6 +6,7 @@
 # See: http://doc.scrapy.org/en/latest/topics/item-pipeline.html
 
 from scrapy.exceptions import DropItem
+from hashlib import sha1 
 
 class SpiderDispatcherPipeline(object):
     spider_name = None 
@@ -50,11 +51,14 @@ class ArabiaPipeline(SpiderDispatcherPipeline):
             h2t.ignore_links = True
             item['content'] = h2t.handle(item.get('content'))
         # check duplicate
-        if item.get('id') in self.ids:
+        if self._hash(item) in self.ids:
             raise DropItem('Duplicated item')
         
-        self.ids.append(item.get('id'))
+        self.ids.append(self._hash(item))
         return item
-
+    
+    def _hash(self, item):
+        return sha1(unicode(item.values())).hexdigest()
+        
     def close(self, spider):
         del self.ids
