@@ -46,3 +46,13 @@ class ArabiaCommunityItem(scrapy.Item):
     followers = scrapy.Field()
     url = scrapy.Field()
     item = scrapy.Field()
+    
+class ArabiaQuestionItem(scrapy.Item):
+    id = scrapy.Field()
+    asker_username = scrapy.Field()
+    answerer_username = scrapy.Field()
+    title = scrapy.Field()
+    date = scrapy.Field()
+    content = scrapy.Field()
+    url = scrapy.Field()
+    item = scrapy.Field()

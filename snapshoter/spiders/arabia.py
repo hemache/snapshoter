@@ -8,7 +8,7 @@ from scrapy.contrib.loader import ItemLoader
 from scrapy.contrib.loader.processor import TakeFirst, MapCompose, Compose, Join
 from urlparse import urljoin
 
-from snapshoter.items import ArabiaPostItem, ArabiaCommentItem, ArabiaCommunityItem
+from snapshoter.items import ArabiaPostItem, ArabiaCommentItem, ArabiaCommunityItem, ArabiaQuestionItem
 
 
 class ArabiaSpider(CrawlSpider):
@@ -22,13 +22,20 @@ class ArabiaSpider(CrawlSpider):
     
     def start_requests(self):
         yield Request('https://arabia.io/communities')
-        yield Request('https://arabia.io/sitemap-1.xml', callback=self.parse_sitemap)
+        yield Request('https://arabia.io/sitemap-1.xml', callback=self.parse_posts_sitemap)
+        yield Request('https://arabia.io/sitemap-2.xml', callback=self.parse_questions_sitemap)
     
-    def parse_sitemap(self, response):
+    def parse_posts_sitemap(self, response):
         selector = Selector(text=response.body)
         for url in selector.xpath('//loc/text()').extract():
             # adding meta date will result memory leak, avoid it !
             yield Request(url, callback=self.parse_post)
+    
+    def parse_questions_sitemap(self, response):
+        selector = Selector(text=response.body)
+        for url in selector.xpath('//loc/text()').extract():
+            # adding meta date will result memory leak, avoid it !
+            yield Request(url, callback=self.parse_question)
         
     def parse_post(self, response):
         post = ItemLoader(item=ArabiaPostItem(), response=response)
@@ -82,7 +89,20 @@ class ArabiaSpider(CrawlSpider):
         for comment in comments:
             yield comment.load_item()
 
-
+    def parse_question(self, response):
+        question = ItemLoader(item=ArabiaQuestionItem(), response=response)
+        question.default_output_processor = TakeFirst()
+        question.add_xpath('id', '//*[@id="question_id"]/@value', MapCompose(int))
+        question.add_xpath('asker_username', '//*[@class="question_meta"]/a/text()')
+        question.add_xpath('answerer_username', '//*[@class="inblock username"]/text()')
+        question.add_xpath('title', '//*[@class="question_title"]/h2/text()')
+        question.add_xpath('date', '//*[@class="question_date"]/text()')
+        question.add_xpath('content', '//*[@id="question_answer"]/*', Join('\n'))
+        question.add_value('url', response.url)
+        question.add_value('item', 'question')
+        
+        yield question.load_item()
+        
     def parse_community(self, response):
         community = ItemLoader(item=ArabiaCommunityItem(), response=response)
         community.default_output_processor = TakeFirst()
