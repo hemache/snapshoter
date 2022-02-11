@@ -1,5 +1,5 @@
 Scrapy==0.24.4
-Twisted==14.0.2
+Twisted==22.1.0
 cffi==0.8.6
 characteristic==14.1.0
 cryptography==3.2
